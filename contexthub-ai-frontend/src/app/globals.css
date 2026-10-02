@@ -1,0 +1,27 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 0 0% 100%;
+  --foreground: 222 30% 10%;
+  --muted: 210 24% 96%;
+  --muted-foreground: 215 14% 42%;
+  --border: 214 20% 88%;
+  --primary: 173 72% 28%;
+  --primary-foreground: 0 0% 100%;
+  --accent: 37 88% 50%;
+  --accent-foreground: 222 30% 10%;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+}

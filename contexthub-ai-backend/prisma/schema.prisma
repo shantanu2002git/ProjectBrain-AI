@@ -1,0 +1,187 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [vector]
+}
+
+model User {
+  id        String   @id @default(uuid()) @db.Uuid
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("users")
+}
+
+model Project {
+  id                  String         @id @default(uuid()) @db.Uuid
+  name                String
+  githubRepositoryUrl String?        @map("github_repository_url")
+  jiraProjectKey      String?        @map("jira_project_key")
+  createdAt           DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+  repositories        Repository[]
+  jiraTickets         JiraTicket[]
+  features            Feature[]
+  relationships       Relationship[]
+  embeddings          Embedding[]
+  chatSessions        ChatSession[]
+  chatMessages        ChatMessage[]
+
+  @@map("projects")
+}
+
+model ChatSession {
+  id        String        @id @default(uuid()) @db.Uuid
+  projectId String        @map("project_id") @db.Uuid
+  title     String
+  persona   String        @default("developer")
+  createdAt DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+  project   Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  messages  ChatMessage[]
+
+  @@index([projectId, updatedAt])
+  @@map("chat_sessions")
+}
+
+model ChatMessage {
+  id        String      @id @default(uuid()) @db.Uuid
+  sessionId String      @map("session_id") @db.Uuid
+  projectId String      @map("project_id") @db.Uuid
+  role      String
+  content   String
+  persona   String?
+  citations Json        @default("[]")
+  createdAt DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  session   ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  project   Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, createdAt])
+  @@index([projectId, createdAt])
+  @@map("chat_messages")
+}
+
+model Repository {
+  id            String        @id @default(uuid()) @db.Uuid
+  projectId     String        @map("project_id") @db.Uuid
+  provider      String        @default("github")
+  remoteUrl     String        @map("remote_url")
+  defaultBranch String?       @map("default_branch")
+  clonedPath    String?       @map("cloned_path")
+  createdAt     DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  project       Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  files         File[]
+  pullRequests  PullRequest[]
+
+  @@map("repositories")
+}
+
+model File {
+  id           String     @id @default(uuid()) @db.Uuid
+  repositoryId String     @map("repository_id") @db.Uuid
+  path         String
+  language     String?
+  contentHash  String?    @map("content_hash")
+  createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  repository   Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  artifacts    Artifact[]
+
+  @@unique([repositoryId, path])
+  @@map("files")
+}
+
+model Artifact {
+  id        String   @id @default(uuid()) @db.Uuid
+  fileId    String   @map("file_id") @db.Uuid
+  kind      String
+  name      String
+  startLine Int?     @map("start_line")
+  endLine   Int?     @map("end_line")
+  metadata  Json     @default("{}")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  file      File     @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@index([kind])
+  @@map("artifacts")
+}
+
+model JiraTicket {
+  id                 String   @id @default(uuid()) @db.Uuid
+  projectId          String   @map("project_id") @db.Uuid
+  ticketKey          String   @map("ticket_key")
+  issueType          String   @map("issue_type")
+  title              String
+  status             String?
+  acceptanceCriteria String?  @map("acceptance_criteria")
+  businessRules      String?  @map("business_rules")
+  raw                Json     @default("{}")
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  project            Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, ticketKey])
+  @@map("jira_tickets")
+}
+
+model PullRequest {
+  id           String     @id @default(uuid()) @db.Uuid
+  repositoryId String     @map("repository_id") @db.Uuid
+  providerId   String     @map("provider_id")
+  title        String
+  url          String
+  mergedAt     DateTime?  @map("merged_at") @db.Timestamptz(6)
+  raw          Json       @default("{}")
+  repository   Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+
+  @@unique([repositoryId, providerId])
+  @@map("pull_requests")
+}
+
+model Feature {
+  id               String   @id @default(uuid()) @db.Uuid
+  projectId        String   @map("project_id") @db.Uuid
+  name             String
+  businessSummary  String?  @map("business_summary")
+  technicalSummary String?  @map("technical_summary")
+  riskScore        Decimal  @default(0) @map("risk_score") @db.Decimal(4, 2)
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  project          Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@map("features")
+}
+
+model Relationship {
+  id               String   @id @default(uuid()) @db.Uuid
+  projectId        String   @map("project_id") @db.Uuid
+  sourceType       String   @map("source_type")
+  sourceId         String   @map("source_id") @db.Uuid
+  targetType       String   @map("target_type")
+  targetId         String   @map("target_id") @db.Uuid
+  relationshipType String   @map("relationship_type")
+  confidence       Decimal  @default(1) @db.Decimal(4, 2)
+  metadata         Json     @default("{}")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  project          Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@map("relationships")
+}
+
+model Embedding {
+  id         String                @id @default(uuid()) @db.Uuid
+  projectId  String                @map("project_id") @db.Uuid
+  sourceType String                @map("source_type")
+  sourceId   String                @map("source_id") @db.Uuid
+  content    String
+  embedding  Unsupported("vector(1536)")?
+  metadata   Json                  @default("{}")
+  createdAt  DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  project    Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@map("embeddings")
+}
