@@ -11,4 +11,4 @@ npm run dev
 ```
 
 The app runs on `http://localhost:3000` and expects the backend at `http://localhost:4000`.
-
+In Vercel, API requests use the same-origin `/api` path, which is routed to the backend service.

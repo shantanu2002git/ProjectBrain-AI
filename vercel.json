@@ -1,0 +1,27 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "services": {
+    "contexthub-ai-backend": {
+      "root": "contexthub-ai-backend",
+      "framework": "express"
+    },
+    "contexthub-ai-frontend": {
+      "root": "contexthub-ai-frontend",
+      "framework": "nextjs"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": {
+        "service": "contexthub-ai-backend"
+      }
+    },
+    {
+      "source": "/(.*)",
+      "destination": {
+        "service": "contexthub-ai-frontend"
+      }
+    }
+  ]
+}
